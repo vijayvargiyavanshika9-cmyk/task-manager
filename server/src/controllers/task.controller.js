@@ -70,3 +70,11 @@ export const deleteComment = asyncHandler(async (req, res) => {
     message: 'Comment deleted successfully.',
   });
 });
+
+export const getProjectAnalytics = asyncHandler(async (req, res) => {
+  const analytics = await taskService.getProjectAnalytics(req.params.projectId, req.user.id);
+  res.status(200).json({
+    success: true,
+    data: analytics,
+  });
+});

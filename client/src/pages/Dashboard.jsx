@@ -4,6 +4,7 @@ import { projectAPI, taskAPI } from '../services/api';
 import KanbanBoard from '../components/kanban/KanbanBoard';
 import CreateProjectModal from '../components/kanban/CreateProjectModal';
 import TaskFilterBar from '../components/kanban/TaskFilterBar';
+import ProjectAnalytics from '../components/analytics/ProjectAnalytics';
 import { useDebounce } from '../hooks/useDebounce';
 import {
   Kanban,
@@ -13,6 +14,8 @@ import {
   Loader2,
   Trash2,
   ChevronDown,
+  LayoutGrid,
+  BarChart3,
 } from 'lucide-react';
 
 export const Dashboard = () => {
@@ -25,6 +28,9 @@ export const Dashboard = () => {
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+
+  // Active View Tab: 'board' | 'analytics'
+  const [activeTab, setActiveTab] = useState('board');
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -266,7 +272,7 @@ export const Dashboard = () => {
               </div>
             )}
 
-            {activeProject && (
+                        {activeProject && (
               <button
                 onClick={() => handleDeleteProject(activeProject._id)}
                 title="Delete project"
@@ -274,6 +280,34 @@ export const Dashboard = () => {
               >
                 <Trash2 className="w-4 h-4" />
               </button>
+            )}
+
+            {/* View Switcher Tabs (Board vs Analytics) */}
+            {activeProject && (
+              <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1 ml-0 sm:ml-2">
+                <button
+                  onClick={() => setActiveTab('board')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'board'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Kanban</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'analytics'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  <span>Analytics</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -311,8 +345,11 @@ export const Dashboard = () => {
               <span>Create First Project</span>
             </button>
           </div>
+        ) : activeTab === 'analytics' ? (
+          /* Analytics Tab View */
+          <ProjectAnalytics project={activeProject} />
         ) : (
-          /* Kanban Board View */
+          /* Active Kanban Board View */
           <div className="flex-1 flex flex-col">
             {/* Search & Filter Bar */}
             <TaskFilterBar

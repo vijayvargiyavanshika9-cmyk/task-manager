@@ -10,6 +10,7 @@ import {
   getTasksByProject,
   createTask,
   searchTasks,
+  getProjectAnalytics,
 } from '../controllers/task.controller.js';
 import { protect } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
@@ -37,6 +38,9 @@ router
   .get(getProject)
   .put(validate(updateProjectSchema), updateProject)
   .delete(deleteProject);
+
+// Project Analytics endpoint
+router.get('/:projectId/analytics', getProjectAnalytics);
 
 // Nested tasks for project
 router
