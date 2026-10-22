@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { projectAPI, taskAPI } from '../services/api';
 import KanbanBoard from '../components/kanban/KanbanBoard';
 import CreateProjectModal from '../components/kanban/CreateProjectModal';
+import TaskFilterBar from '../components/kanban/TaskFilterBar';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   Kanban,
   LogOut,
@@ -11,7 +13,6 @@ import {
   Loader2,
   Trash2,
   ChevronDown,
-  Layers,
 } from 'lucide-react';
 
 export const Dashboard = () => {
@@ -25,6 +26,13 @@ export const Dashboard = () => {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
 
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
   // Fetch all projects for the user
   const fetchProjects = useCallback(async () => {
     try {
@@ -34,7 +42,6 @@ export const Dashboard = () => {
         const fetched = res.data.data || [];
         setProjects(fetched);
         if (fetched.length > 0) {
-          // If no active project or active project was deleted, pick the first
           setActiveProject((prev) => {
             const exists = prev && fetched.some((p) => p._id === prev._id);
             return exists ? prev : fetched[0];
@@ -50,15 +57,30 @@ export const Dashboard = () => {
     }
   }, []);
 
-  // Fetch tasks for currently active project
+  // Fetch or filter tasks for active project
   const fetchTasks = useCallback(async (projectId) => {
     if (!projectId) {
       setTasks([]);
       return;
     }
+
     try {
       setLoadingTasks(true);
-      const res = await taskAPI.getByProject(projectId);
+      const hasFilters =
+        debouncedSearchTerm.trim() || priorityFilter !== 'all' || statusFilter !== 'all';
+
+      let res;
+      if (hasFilters) {
+        const params = {};
+        if (debouncedSearchTerm.trim()) params.q = debouncedSearchTerm.trim();
+        if (priorityFilter !== 'all') params.priority = priorityFilter;
+        if (statusFilter !== 'all') params.status = statusFilter;
+
+        res = await taskAPI.search(projectId, params);
+      } else {
+        res = await taskAPI.getByProject(projectId);
+      }
+
       if (res.data?.success) {
         setTasks(res.data.data || []);
       }
@@ -67,7 +89,7 @@ export const Dashboard = () => {
     } finally {
       setLoadingTasks(false);
     }
-  }, []);
+  }, [debouncedSearchTerm, priorityFilter, statusFilter]);
 
   useEffect(() => {
     fetchProjects();
@@ -81,6 +103,12 @@ export const Dashboard = () => {
     }
   }, [activeProject, fetchTasks]);
 
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setPriorityFilter('all');
+    setStatusFilter('all');
+  };
+
   // Project Handlers
   const handleCreateProject = async (projectData) => {
     const res = await projectAPI.create(projectData);
@@ -88,6 +116,7 @@ export const Dashboard = () => {
       const newProj = res.data.data;
       setProjects((prev) => [newProj, ...prev]);
       setActiveProject(newProj);
+      handleClearFilters();
     }
   };
 
@@ -98,6 +127,7 @@ export const Dashboard = () => {
       const updated = projects.filter((p) => p._id !== projectId);
       setProjects(updated);
       setActiveProject(updated.length > 0 ? updated[0] : null);
+      handleClearFilters();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete project');
     }
@@ -131,7 +161,6 @@ export const Dashboard = () => {
       await taskAPI.updateStatus(taskId, { status: newStatus });
     } catch (err) {
       console.error('Failed to move task status:', err);
-      // Revert if API fails
       if (activeProject?._id) fetchTasks(activeProject._id);
     }
   };
@@ -190,13 +219,13 @@ export const Dashboard = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         {/* Project Header Toolbar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-800">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {/* Project Switcher Dropdown */}
             {projects.length > 0 && (
               <div className="relative">
                 <button
                   onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-                  className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-sm font-semibold text-white transition-all shadow-sm"
+                  className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-sm font-semibold text-white transition-all shadow-sm cursor-pointer"
                 >
                   <span
                     className="w-3 h-3 rounded-full"
@@ -217,6 +246,7 @@ export const Dashboard = () => {
                         onClick={() => {
                           setActiveProject(p);
                           setProjectDropdownOpen(false);
+                          handleClearFilters();
                         }}
                         className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-800/80 transition-colors ${
                           activeProject?._id === p._id ? 'text-indigo-400 font-semibold bg-slate-800/40' : 'text-slate-300'
@@ -240,7 +270,7 @@ export const Dashboard = () => {
               <button
                 onClick={() => handleDeleteProject(activeProject._id)}
                 title="Delete project"
-                className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all"
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -282,12 +312,23 @@ export const Dashboard = () => {
             </button>
           </div>
         ) : (
-          /* Active Kanban Board */
+          /* Kanban Board View */
           <div className="flex-1 flex flex-col">
+            {/* Search & Filter Bar */}
+            <TaskFilterBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              priorityFilter={priorityFilter}
+              onPriorityChange={setPriorityFilter}
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
+              onClearFilters={handleClearFilters}
+            />
+
             {loadingTasks ? (
               <div className="flex-1 flex items-center justify-center py-12 text-slate-400 gap-2">
                 <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
-                <span className="text-xs">Syncing board tasks...</span>
+                <span className="text-xs">Filtering tasks...</span>
               </div>
             ) : (
               <KanbanBoard

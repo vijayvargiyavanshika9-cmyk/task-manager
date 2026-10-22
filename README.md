@@ -49,7 +49,9 @@ Task-Manager/
   - MongoDB text indexing and multi-criteria query filters.
   - Task comment.
   - High-performance aggregation pipeline for workspace completion metrics and visual stats.
-
+- **[ ] PR 3: Project Analytics Dashboard & Aggregation Metrics**
+  - High-performance Mongoose `$facet` aggregation pipeline for completion metrics, overdue tracking, and visual stats.
+  - Dedicated Analytics tab on Dashboard with progress bars and status/priority distribution charts.
 ---
 
 ## 🛠️ Getting Started Locally

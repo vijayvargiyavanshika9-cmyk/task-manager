@@ -9,7 +9,8 @@
     "dev": "nodemon src/server.js",
     "test": "node src/test-auth.js",
     "test:kanban": "node src/test-kanban.js",
-    "test:all": "node src/test-auth.js ; node src/test-kanban.js"
+    "test:pr3": "node src/test-pr3.js",
+    "test:all": "node src/test-auth.js ; node src/test-kanban.js ; node src/test-pr3.js"
   },
   "keywords": [
     "express",

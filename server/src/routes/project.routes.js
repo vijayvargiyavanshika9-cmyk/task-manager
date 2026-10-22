@@ -6,14 +6,21 @@ import {
   updateProject,
   deleteProject,
 } from '../controllers/project.controller.js';
-import { getTasksByProject, createTask } from '../controllers/task.controller.js';
+import {
+  getTasksByProject,
+  createTask,
+  searchTasks,
+} from '../controllers/task.controller.js';
 import { protect } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validate.js';
 import {
   createProjectSchema,
   updateProjectSchema,
 } from '../validators/project.validator.js';
-import { createTaskSchema } from '../validators/task.validator.js';
+import {
+  createTaskSchema,
+  searchTasksQuerySchema,
+} from '../validators/task.validator.js';
 
 const router = Router();
 
@@ -36,5 +43,12 @@ router
   .route('/:projectId/tasks')
   .get(getTasksByProject)
   .post(validate(createTaskSchema), createTask);
+
+// Search & multi-criteria filter tasks
+router.get(
+  '/:projectId/tasks/search',
+  validate(searchTasksQuerySchema),
+  searchTasks
+);
 
 export default router;

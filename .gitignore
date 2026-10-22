@@ -34,3 +34,6 @@ dist-ssr
 # Testing
 coverage
 .nyc_output
+
+# Stashed feature patches
+patches/

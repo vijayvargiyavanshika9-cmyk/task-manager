@@ -12,7 +12,6 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If receiving a 401 on protected routes, notify auth context
     const isAuthRoute =
       error.config?.url?.includes('/auth/login') ||
       error.config?.url?.includes('/auth/register');
@@ -45,10 +44,13 @@ export const projectAPI = {
 // Task Service Endpoints
 export const taskAPI = {
   getByProject: (projectId) => api.get(`/projects/${projectId}/tasks`),
+  search: (projectId, params) => api.get(`/projects/${projectId}/tasks/search`, { params }),
   create: (projectId, data) => api.post(`/projects/${projectId}/tasks`, data),
   update: (id, data) => api.put(`/tasks/${id}`, data),
   updateStatus: (id, { status, order }) => api.patch(`/tasks/${id}/status`, { status, order }),
   delete: (id) => api.delete(`/tasks/${id}`),
+  addComment: (taskId, content) => api.post(`/tasks/${taskId}/comments`, { content }),
+  deleteComment: (taskId, commentId) => api.delete(`/tasks/${taskId}/comments/${commentId}`),
 };
 
 export default api;

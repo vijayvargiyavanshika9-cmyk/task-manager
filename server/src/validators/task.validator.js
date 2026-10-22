@@ -14,7 +14,7 @@ export const createTaskSchema = z.object({
     description: z.string().trim().optional().default(''),
     status: z.enum(TASK_STATUSES).optional().default('todo'),
     priority: z.enum(TASK_PRIORITIES).optional().default('medium'),
-    dueDate: z.string().datetime({ offset: true }).nullable().optional(),
+    dueDate: z.string().nullable().optional(),
     assignedTo: z.string().nullable().optional(),
     order: z.number().int().optional().default(0),
   }),
@@ -49,5 +49,31 @@ export const updateTaskStatusSchema = z.object({
       required_error: 'Status is required (todo, in_progress, review, done)',
     }),
     order: z.number().int().optional(),
+  }),
+});
+
+export const addCommentSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Task ID is required'),
+  }),
+  body: z.object({
+    content: z
+      .string({ required_error: 'Comment content is required' })
+      .trim()
+      .min(1, 'Comment content cannot be empty')
+      .max(1000, 'Comment cannot exceed 1000 characters'),
+  }),
+});
+
+export const searchTasksQuerySchema = z.object({
+  params: z.object({
+    projectId: z.string().min(1, 'Project ID is required'),
+  }),
+  query: z.object({
+    q: z.string().trim().optional(),
+    status: z.enum(TASK_STATUSES).optional(),
+    priority: z.enum(TASK_PRIORITIES).optional(),
+    dueDateFrom: z.string().optional(),
+    dueDateTo: z.string().optional(),
   }),
 });

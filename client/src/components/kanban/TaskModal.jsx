@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Calendar, AlertCircle, Trash2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { taskAPI } from '../../services/api';
+import {
+  X,
+  Loader2,
+  Calendar,
+  AlertCircle,
+  Trash2,
+  MessageSquare,
+  Send,
+  User,
+} from 'lucide-react';
 
 export const TaskModal = ({
   isOpen,
@@ -9,6 +20,8 @@ export const TaskModal = ({
   initialData = null,
   defaultStatus = 'todo',
 }) => {
+  const { user } = useAuth();
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState('todo');
@@ -16,6 +29,11 @@ export const TaskModal = ({
   const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Comments state
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   const isEditing = Boolean(initialData && initialData._id);
 
@@ -26,13 +44,16 @@ export const TaskModal = ({
       setStatus(initialData.status || 'todo');
       setPriority(initialData.priority || 'medium');
       setDueDate(initialData.dueDate ? initialData.dueDate.slice(0, 10) : '');
+      setComments(initialData.comments || []);
     } else {
       setTitle('');
       setDescription('');
       setStatus(defaultStatus);
       setPriority('medium');
       setDueDate('');
+      setComments([]);
     }
+    setNewComment('');
     setError('');
   }, [initialData, defaultStatus, isOpen]);
 
@@ -77,29 +98,60 @@ export const TaskModal = ({
     }
   };
 
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !initialData?._id) return;
+
+    setSubmittingComment(true);
+    try {
+      const res = await taskAPI.addComment(initialData._id, newComment.trim());
+      if (res.data?.success) {
+        setComments((prev) => [...prev, res.data.data]);
+        setNewComment('');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to post comment');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await taskAPI.deleteComment(initialData._id, commentId);
+      setComments((prev) => prev.filter((c) => c._id !== commentId && c.id !== commentId));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete comment');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl relative overflow-hidden">
+        {/* Fixed Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0 bg-slate-900">
           <h2 className="text-lg font-bold text-white">
             {isEditing ? 'Edit Task' : 'Create New Task'}
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {error && (
-          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+        {/* Scrollable Modal Body */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {/* Task Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
               Task Title *
@@ -165,17 +217,15 @@ export const TaskModal = ({
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
               Due Date
             </label>
-            <div className="relative">
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-              />
-            </div>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
           </div>
 
-          <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
             {isEditing ? (
               <button
                 type="button"
@@ -195,7 +245,7 @@ export const TaskModal = ({
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -210,6 +260,102 @@ export const TaskModal = ({
             </div>
           </div>
         </form>
+
+        {/* Comments Section (Visible in Edit Mode) */}
+        {isEditing && (
+          <div className="mt-8 pt-6 border-t border-slate-800">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-sm font-bold text-white">
+                Comments & Discussion ({comments.length})
+              </h3>
+            </div>
+
+            {/* Comment Thread List */}
+            <div className="space-y-3 mb-4 max-h-48 overflow-y-auto pr-1">
+              {comments.length > 0 ? (
+                comments.map((comment) => {
+                  const authorId = comment.author?._id || comment.author?.id || comment.author;
+                  const isAuthor = user && authorId && authorId.toString() === user.id?.toString();
+
+                  return (
+                    <div
+                      key={comment._id || comment.id}
+                      className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 flex flex-col gap-1.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {comment.author?.avatar ? (
+                            <img
+                              src={comment.author.avatar}
+                              alt={comment.author.name}
+                              className="w-4 h-4 rounded-full"
+                            />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[9px] font-bold">
+                              {comment.author?.name ? comment.author.name.slice(0, 1) : 'U'}
+                            </div>
+                          )}
+                          <span className="font-semibold text-slate-200">
+                            {comment.author?.name || 'Team Member'}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {new Date(comment.createdAt).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+
+                        {isAuthor && (
+                          <button
+                            onClick={() => handleDeleteComment(comment._id || comment.id)}
+                            title="Delete comment"
+                            className="text-slate-500 hover:text-rose-400 p-0.5 rounded transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-slate-300 leading-relaxed pl-6">{comment.content}</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-3 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                  No comments yet. Start the conversation below.
+                </div>
+              )}
+            </div>
+
+            {/* Add Comment Input */}
+            <form onSubmit={handleAddComment} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Write a comment..."
+                className="flex-1 px-3.5 py-2 bg-slate-950/70 border border-slate-700/80 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                type="submit"
+                disabled={submittingComment || !newComment.trim()}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-sm"
+              >
+                {submittingComment ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                <span>Post</span>
+              </button>
+            </form>
+          </div>
+        )}
+        </div>
       </div>
     </div>
   );

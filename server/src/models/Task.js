@@ -3,6 +3,32 @@ import mongoose from 'mongoose';
 export const TASK_STATUSES = ['todo', 'in_progress', 'review', 'done'];
 export const TASK_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
+const commentSchema = new mongoose.Schema(
+  {
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Comment author is required'],
+    },
+    content: {
+      type: String,
+      required: [true, 'Comment content cannot be empty'],
+      trim: true,
+      maxlength: [1000, 'Comment cannot exceed 1000 characters'],
+    },
+  },
+  {
+    timestamps: true,
+    toJSON: {
+      transform: function (doc, ret) {
+        ret.id = ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  }
+);
+
 const taskSchema = new mongoose.Schema(
   {
     title: {
@@ -63,6 +89,7 @@ const taskSchema = new mongoose.Schema(
       default: 0,
       index: true,
     },
+    comments: [commentSchema],
   },
   {
     timestamps: true,
@@ -78,6 +105,9 @@ const taskSchema = new mongoose.Schema(
 
 // Compound index to quickly fetch and order tasks within a project's column
 taskSchema.index({ project: 1, status: 1, order: 1 });
+
+// Full text index for keyword search across titles and descriptions
+taskSchema.index({ title: 'text', description: 'text' });
 
 export const Task = mongoose.model('Task', taskSchema);
 export default Task;
