@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node src/test-auth.js"
+    "test": "node src/test-auth.js",
+    "test:kanban": "node src/test-kanban.js",
+    "test:all": "node src/test-auth.js ; node src/test-kanban.js"
   },
   "keywords": [
     "express",

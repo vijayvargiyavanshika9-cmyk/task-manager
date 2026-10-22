@@ -25,12 +25,30 @@ api.interceptors.response.use(
   }
 );
 
-// API Service Functions
+// Auth Service Endpoints
 export const authAPI = {
   register: (payload) => api.post('/auth/register', payload),
   login: (payload) => api.post('/auth/login', payload),
   logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
+};
+
+// Project Service Endpoints
+export const projectAPI = {
+  getAll: () => api.get('/projects'),
+  getById: (id) => api.get(`/projects/${id}`),
+  create: (data) => api.post('/projects', data),
+  update: (id, data) => api.put(`/projects/${id}`, data),
+  delete: (id) => api.delete(`/projects/${id}`),
+};
+
+// Task Service Endpoints
+export const taskAPI = {
+  getByProject: (projectId) => api.get(`/projects/${projectId}/tasks`),
+  create: (projectId, data) => api.post(`/projects/${projectId}/tasks`, data),
+  update: (id, data) => api.put(`/tasks/${id}`, data),
+  updateStatus: (id, { status, order }) => api.patch(`/tasks/${id}/status`, { status, order }),
+  delete: (id) => api.delete(`/tasks/${id}`),
 };
 
 export default api;
