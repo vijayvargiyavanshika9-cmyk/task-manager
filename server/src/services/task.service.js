@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Task from '../models/Task.js';
 import Project from '../models/Project.js';
 import { AppError } from '../utils/AppError.js';
@@ -215,4 +216,64 @@ export const deleteComment = async (taskId, commentId, userId) => {
   await task.save();
 
   return { commentId, deleted: true };
+};
+
+/**
+ * Project Analytics Aggregation Pipeline
+ */
+export const getProjectAnalytics = async (projectId, userId) => {
+  await verifyProjectAccess(projectId, userId);
+
+  const projectObjectId = new mongoose.Types.ObjectId(projectId);
+
+  const [analyticsResult] = await Task.aggregate([
+    { $match: { project: projectObjectId } },
+    {
+      $facet: {
+        total: [{ $count: 'count' }],
+        byStatus: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
+        byPriority: [{ $group: { _id: '$priority', count: { $sum: 1 } } }],
+        overdue: [
+          {
+            $match: {
+              status: { $ne: 'done' },
+              dueDate: { $lt: new Date(), $ne: null },
+            },
+          },
+          { $count: 'count' },
+        ],
+      },
+    },
+  ]);
+
+  const totalTasks = analyticsResult?.total?.[0]?.count || 0;
+  const overdueTasks = analyticsResult?.overdue?.[0]?.count || 0;
+
+  const statusMap = { todo: 0, in_progress: 0, review: 0, done: 0 };
+  (analyticsResult?.byStatus || []).forEach((item) => {
+    if (statusMap[item._id] !== undefined) {
+      statusMap[item._id] = item.count;
+    }
+  });
+
+  const priorityMap = { low: 0, medium: 0, high: 0, urgent: 0 };
+  (analyticsResult?.byPriority || []).forEach((item) => {
+    if (priorityMap[item._id] !== undefined) {
+      priorityMap[item._id] = item.count;
+    }
+  });
+
+  const completedTasks = statusMap.done || 0;
+  const inProgressTasks = statusMap.in_progress || 0;
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  return {
+    totalTasks,
+    completedTasks,
+    inProgressTasks,
+    overdueTasks,
+    completionRate,
+    byStatus: statusMap,
+    byPriority: priorityMap,
+  };
 };
