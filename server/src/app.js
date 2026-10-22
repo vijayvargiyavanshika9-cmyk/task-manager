@@ -7,6 +7,8 @@ import env from './config/env.js';
 import { AppError } from './utils/AppError.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
+import projectRoutes from './routes/project.routes.js';
+import taskRoutes from './routes/task.routes.js';
 
 const app = express();
 
@@ -52,6 +54,8 @@ app.get('/api/health', (req, res) => {
 
 // 5. Mount API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // 6. Handle Unhandled Routes (404)
 app.all('*', (req, res, next) => {
