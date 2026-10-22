@@ -30,6 +30,44 @@ export const getTasksByProject = async (projectId, userId) => {
   return Task.find({ project: projectId })
     .populate('creator', 'name email avatar')
     .populate('assignedTo', 'name email avatar')
+    .populate('comments.author', 'name email avatar')
+    .sort({ order: 1, createdAt: -1 });
+};
+
+/**
+ * Dynamic search & multi-criteria filtering for project tasks
+ */
+export const searchTasks = async (projectId, { q, status, priority, dueDateFrom, dueDateTo }, userId) => {
+  await verifyProjectAccess(projectId, userId);
+
+  const query = { project: projectId };
+
+  // Partial case-insensitive text match across title and description
+  if (q && q.trim()) {
+    query.$or = [
+      { title: { $regex: q.trim(), $options: 'i' } },
+      { description: { $regex: q.trim(), $options: 'i' } },
+    ];
+  }
+
+  if (status) {
+    query.status = status;
+  }
+
+  if (priority) {
+    query.priority = priority;
+  }
+
+  if (dueDateFrom || dueDateTo) {
+    query.dueDate = {};
+    if (dueDateFrom) query.dueDate.$gte = new Date(dueDateFrom);
+    if (dueDateTo) query.dueDate.$lte = new Date(dueDateTo);
+  }
+
+  return Task.find(query)
+    .populate('creator', 'name email avatar')
+    .populate('assignedTo', 'name email avatar')
+    .populate('comments.author', 'name email avatar')
     .sort({ order: 1, createdAt: -1 });
 };
 
@@ -39,7 +77,6 @@ export const getTasksByProject = async (projectId, userId) => {
 export const createTask = async (projectId, taskData, userId) => {
   await verifyProjectAccess(projectId, userId);
 
-  // Determine current highest order in that column to append cleanly
   const lastTask = await Task.findOne({
     project: projectId,
     status: taskData.status || 'todo',
@@ -83,6 +120,7 @@ export const updateTask = async (taskId, updateData, userId) => {
   return task.populate([
     { path: 'creator', select: 'name email avatar' },
     { path: 'assignedTo', select: 'name email avatar' },
+    { path: 'comments.author', select: 'name email avatar' },
   ]);
 };
 
@@ -107,6 +145,7 @@ export const updateTaskStatus = async (taskId, { status, order }, userId) => {
   return task.populate([
     { path: 'creator', select: 'name email avatar' },
     { path: 'assignedTo', select: 'name email avatar' },
+    { path: 'comments.author', select: 'name email avatar' },
   ]);
 };
 
@@ -124,4 +163,56 @@ export const deleteTask = async (taskId, userId) => {
   await Task.findByIdAndDelete(taskId);
 
   return { taskId, deleted: true };
+};
+
+/**
+ * Add a comment to a task
+ */
+export const addComment = async (taskId, content, userId) => {
+  const task = await Task.findById(taskId);
+  if (!task) {
+    throw new AppError('Task not found.', 404);
+  }
+
+  await verifyProjectAccess(task.project, userId);
+
+  task.comments.push({
+    author: userId,
+    content,
+  });
+
+  await task.save();
+  await task.populate('comments.author', 'name email avatar');
+
+  return task.comments[task.comments.length - 1];
+};
+
+/**
+ * Delete a comment from a task
+ */
+export const deleteComment = async (taskId, commentId, userId) => {
+  const task = await Task.findById(taskId);
+  if (!task) {
+    throw new AppError('Task not found.', 404);
+  }
+
+  const project = await verifyProjectAccess(task.project, userId);
+
+  const comment = task.comments.id(commentId);
+  if (!comment) {
+    throw new AppError('Comment not found.', 404);
+  }
+
+  // Allow deletion if user is comment author OR project owner
+  const isAuthor = comment.author.toString() === userId.toString();
+  const isOwner = project.owner.toString() === userId.toString();
+
+  if (!isAuthor && !isOwner) {
+    throw new AppError('You do not have permission to delete this comment.', 403);
+  }
+
+  comment.deleteOne();
+  await task.save();
+
+  return { commentId, deleted: true };
 };

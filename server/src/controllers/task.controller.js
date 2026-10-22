@@ -9,6 +9,15 @@ export const getTasksByProject = asyncHandler(async (req, res) => {
   });
 });
 
+export const searchTasks = asyncHandler(async (req, res) => {
+  const tasks = await taskService.searchTasks(req.params.projectId, req.query, req.user.id);
+  res.status(200).json({
+    success: true,
+    count: tasks.length,
+    data: tasks,
+  });
+});
+
 export const createTask = asyncHandler(async (req, res) => {
   const task = await taskService.createTask(req.params.projectId, req.body, req.user.id);
   res.status(201).json({
@@ -42,5 +51,22 @@ export const deleteTask = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Task deleted successfully.',
+  });
+});
+
+export const addComment = asyncHandler(async (req, res) => {
+  const comment = await taskService.addComment(req.params.id, req.body.content, req.user.id);
+  res.status(201).json({
+    success: true,
+    message: 'Comment added successfully.',
+    data: comment,
+  });
+});
+
+export const deleteComment = asyncHandler(async (req, res) => {
+  await taskService.deleteComment(req.params.id, req.params.commentId, req.user.id);
+  res.status(200).json({
+    success: true,
+    message: 'Comment deleted successfully.',
   });
 });
